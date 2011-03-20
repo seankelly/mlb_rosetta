@@ -21,16 +21,7 @@ def parse_commandline():
     parser.add_option("-r", "--rosetta", dest="rosetta_file", help="MLB Rosetta CSV file", metavar="mlb_rosetta.csv")
     parser.add_option("-o", "--out", dest="out_file", help="Output MLB Rosetta CSV file", metavar="new_mlb_rosetta.csv")
     options, args = parser.parse_args()
-
     return options
-
-def add_name(d, name, bdb_id):
-    try:
-        s = d[name]
-        s.add(bdb_id)
-        d[name] = s
-    except KeyError:
-        d[name] = set([bdb_id])
 
 def get_name(d, name):
     if name in d:
@@ -41,18 +32,24 @@ def get_name(d, name):
 # This will add the player to the first and last name dicts
 # to improve performance when trying to find missing players.
 def add_player(bdb_id, row):
-    # row[16] is the first name and row[17] is the last name.
-    add_name(full_name, row[16] + '|' + row[17], bdb_id)
+    # row[30] is the retroid
+    retroid = row[30]
+    try:
+        s = id_lookup[retroid]
+        s.add(bdb_id)
+        id_lookup[retroid] = s
+    except KeyError:
+        id_lookup[retroid] = set([bdb_id])
     bdb_players[bdb_id] = row
 
 # Find all players matching the first and last names.
 # Also, exclude anyone that already has an ID.
-def find_player(first, last):
+def find_player(retroid):
     # Join the two sets together, but
     # exclude any IDs in found_ids.
-    first = first if first is not None else ''
-    last = last if last is not None else ''
-    ids = get_name(full_name, first + '|' + last)
+    if retroid is None or retroid == '':
+        return None
+    ids = get_name(id_lookup, retroid)
     if len(ids) == 1:
         # Since only one in the set, no worries about it popping
         # an arbitrary element.
@@ -79,7 +76,7 @@ def link_players(p):
     if has_bdb_id:
         return player
 
-    bdb_id = find_player(player[1], player[2])
+    bdb_id = find_player(player[6])
     # If didn't find only one possibility, don't change anything.
     if bdb_id is None:
         return player
@@ -94,7 +91,7 @@ def link_players(p):
     # Set the BB-Ref ID (14 from 32).
     player[14] = update_player(player[14], bdb_player[32])
     # Finally, set the Retrosheet ID (6 from 30).
-    player[6] = update_player(player[6], bdb_player[30])
+    #player[6] = update_player(player[6], bdb_player[30])
 
     return player
 
@@ -137,7 +134,6 @@ def load_bdb_file(bdb_csv):
         if id in found_ids:
             continue
         add_player(id, row)
-    return bdb_players
 
 def output_new_rosetta_file(new_rosetta_file, header):
     # Start attempting to cross-link the two.
@@ -151,7 +147,7 @@ def output_new_rosetta_file(new_rosetta_file, header):
 
 
 # These global variables need to be eliminated, but whatever.
-full_name = {}
+id_lookup = {}
 found_ids = set()
 bdb_players = {}
 rosetta_players = []
