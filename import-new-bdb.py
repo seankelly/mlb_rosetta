@@ -2,6 +2,7 @@
 
 from optparse import OptionParser
 import csv
+from datetime import datetime
 import sys
 
 # I use some python 3 features.
@@ -90,8 +91,8 @@ def link_players(p):
     player[10] = update_player(player[10], bdb_player[1])
     # Set the BB-Ref ID (14 from 32).
     player[14] = update_player(player[14], bdb_player[32])
-    # Finally, set the Retrosheet ID (6 from 30).
-    #player[6] = update_player(player[6], bdb_player[30])
+    # Update the 'updated' column (18)
+    player[18] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     return player
 
